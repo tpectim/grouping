@@ -1,0 +1,74 @@
+{
+  "tabs": [
+    {
+      "id": 1778750498568,
+      "name": "分組清單 1",
+      "isEditing": false,
+      "targetGroupCount": 3,
+      "groups": [
+        {
+          "id": 1778760722129.5012,
+          "name": "A組",
+          "note": "",
+          "students": [
+            "201陳宥珊",
+            "201陳俞叡",
+            "202蔡沛融",
+            "202吳聖倫",
+            "202黃榆烜"
+          ],
+          "teachers": [
+            "陳靜玫"
+          ],
+          "assistants": [
+            "李助理"
+          ]
+        },
+        {
+          "id": 1778760722129.8691,
+          "name": "B組",
+          "note": "",
+          "students": [
+            "201陳炤甫",
+            "201翁晴風",
+            "202周昕餘",
+            "201魏承宥♿️",
+            "201蔡睿晴🧍",
+            "202張庭睿"
+          ],
+          "teachers": [
+            "郭一霆"
+          ],
+          "assistants": [
+            "張志工"
+          ]
+        },
+        {
+          "id": 1778760722129.9219,
+          "name": "C組",
+          "note": "",
+          "students": [
+            "201王博弘",
+            "202劉鴻毅",
+            "202陳昱帆",
+            "201李正安",
+            "201張翔皓"
+          ],
+          "teachers": [
+            "許時淮"
+          ],
+          "assistants": []
+        }
+      ],
+      "unassignedStudents": [],
+      "unassignedTeachers": [
+        "冷玲玲"
+      ],
+      "unassignedAssistants": []
+    }
+  ],
+  "rawGroupNames": "A組\nB組\nC組",
+  "rawStudents": "201陳宥珊\n201陳炤甫\n201陳俞叡\n201翁晴風\n201魏承宥♿️\n201王博弘\n201張翔皓\n201李正安\n201蔡睿晴🧍\n202吳聖倫\n202蔡沛融\n202張庭睿\n202黃榆烜\n202陳昱帆\n202劉鴻毅\n202周昕餘",
+  "rawTeachers": "郭一霆\n冷玲玲\n陳靜玫\n許時淮",
+  "rawAssistants": "李助理\n張志工"
+}
