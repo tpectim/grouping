@@ -1,0 +1,185 @@
+{
+  "tabs": [
+    {
+      "id": 1778734786985,
+      "name": "分組清單 1",
+      "isEditing": false,
+      "targetGroupCount": 3,
+      "groups": [
+        {
+          "id": 1778734786986.6194,
+          "name": "第一組",
+          "note": "",
+          "students": [
+            "關羽",
+            "林美美",
+            "張小強",
+            "林俊傑"
+          ],
+          "teachers": [
+            "陳老師"
+          ],
+          "assistants": [
+            "張志工"
+          ]
+        },
+        {
+          "id": 1778734786986.7312,
+          "name": "第二組",
+          "note": "",
+          "students": [
+            "李大仁",
+            "黃彩色",
+            "陳小華",
+            "張飛"
+          ],
+          "teachers": [
+            "林老師",
+            "kobp"
+          ],
+          "assistants": [
+            "李助理"
+          ]
+        },
+        {
+          "id": 1778734786986.259,
+          "name": "第三組",
+          "note": "",
+          "students": [
+            "蔡依林",
+            "周杰倫",
+            "王大明",
+            "趙雲"
+          ],
+          "teachers": [],
+          "assistants": []
+        }
+      ],
+      "unassignedStudents": [],
+      "unassignedTeachers": [],
+      "unassignedAssistants": []
+    },
+    {
+      "id": 1778735086895,
+      "name": "分組清單 1 (複本)",
+      "isEditing": false,
+      "targetGroupCount": 3,
+      "groups": [
+        {
+          "id": 1778735086895.2039,
+          "name": "第一組",
+          "note": "",
+          "students": [
+            "關羽",
+            "林美美",
+            "張小強",
+            "林俊傑"
+          ],
+          "teachers": [
+            "陳老師"
+          ],
+          "assistants": [
+            "張志工"
+          ]
+        },
+        {
+          "id": 1778735086895.573,
+          "name": "第二組",
+          "note": "",
+          "students": [
+            "李大仁",
+            "黃彩色",
+            "陳小華",
+            "張飛"
+          ],
+          "teachers": [
+            "林老師",
+            "kobp"
+          ],
+          "assistants": [
+            "李助理"
+          ]
+        },
+        {
+          "id": 1778735086895.2134,
+          "name": "第三組",
+          "note": "",
+          "students": [
+            "蔡依林",
+            "周杰倫",
+            "王大明",
+            "趙雲"
+          ],
+          "teachers": [],
+          "assistants": []
+        }
+      ],
+      "unassignedStudents": [],
+      "unassignedTeachers": [],
+      "unassignedAssistants": []
+    },
+    {
+      "id": 1778735088801,
+      "name": "分組清單 1 (複本) (複本)",
+      "isEditing": false,
+      "targetGroupCount": 3,
+      "groups": [
+        {
+          "id": 1778735088801.7263,
+          "name": "第一組",
+          "note": "",
+          "students": [
+            "關羽",
+            "林美美",
+            "張小強",
+            "林俊傑"
+          ],
+          "teachers": [
+            "陳老師"
+          ],
+          "assistants": [
+            "張志工"
+          ]
+        },
+        {
+          "id": 1778735088801.0266,
+          "name": "第二組",
+          "note": "",
+          "students": [
+            "李大仁",
+            "黃彩色",
+            "陳小華",
+            "張飛"
+          ],
+          "teachers": [
+            "林老師",
+            "kobp"
+          ],
+          "assistants": [
+            "李助理"
+          ]
+        },
+        {
+          "id": 1778735088801.7227,
+          "name": "第三組",
+          "note": "",
+          "students": [
+            "蔡依林",
+            "周杰倫",
+            "王大明",
+            "趙雲"
+          ],
+          "teachers": [],
+          "assistants": []
+        }
+      ],
+      "unassignedStudents": [],
+      "unassignedTeachers": [],
+      "unassignedAssistants": []
+    }
+  ],
+  "rawGroupNames": "第一組\n第二組\n第三組\n第四組\n第五組\n第六組",
+  "rawStudents": "王大明\n陳小華\n林美美\n張小強\n李大仁\n黃彩色\n趙雲\n關羽\n張飛\n周杰倫\n蔡依林\n林俊傑",
+  "rawTeachers": "陳老師\n林老師",
+  "rawAssistants": "李助理\n張志工"
+}
