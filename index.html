@@ -343,7 +343,7 @@
                 <div class="text-[9px] font-bold text-indigo-800 mb-0.5 border-b pb-0.5">學生名單</div>
                 <div class="print-single-column">
                   <div v-for="(s, sIdx) in getSortedStudents(group.students)" :key="s" class="print-student-item font-medium text-slate-950" :style="{ fontSize: printDialog.fontSize + 'px' }">
-                    {{ sIdx + 1 }}. {{ s }}
+                    {{ getCircledNumber(sIdx + 1) }} {{ s }}
                   </div>
                 </div>
               </div>
@@ -385,6 +385,18 @@
         const printDateStr = computed(() => new Date().toLocaleString());
 
         const getSortedStudents = (students) => [...students].sort((a, b) => a.localeCompare(b, 'zh-TW'));
+
+        // 🌟 轉換帶圈數字符號 (支援 1~50 號)
+        const getCircledNumber = (num) => {
+          const circles = [
+            '①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩',
+            '⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳',
+            '㉑','㉒','㉓','㉔','㉕','㉖','㉗','㉘','㉙','㉚',
+            '㉛','㉜','㉝','㉞','㉟','㉠','㉡','㉢','㉣','㉤',
+            '㉥','㉦','㉧','㉨','㉩','㉪','㉫','㉬','㉭','㉮'
+          ];
+          return num <= circles.length ? circles[num - 1] : `${num}.`;
+        };
 
         // 🌟 核心功能：非同步獲取 GitHub 儲存庫根目錄下的 JSON 檔案清單
         const fetchGithubFilesList = async () => {
@@ -602,7 +614,7 @@
         return {
           rawGroupNames, rawStudents, rawTeachers, rawAssistants, tabs, activeTabId, currentTab, fileInput, printDialog, printEngineTabs, printDateStr, quickInputs,
           githubFiles, selectedGithubFile, isLoadingGithub, loadFromGithub,
-          getSortedStudents, quickAddMember, addTab, deleteTab, duplicateCurrentTab, applyToCurrentTab, updateGroupCount, removeMember, randomizeMembers, 
+          getSortedStudents, getCircledNumber, quickAddMember, addTab, deleteTab, duplicateCurrentTab, applyToCurrentTab, updateGroupCount, removeMember, randomizeMembers, 
           resetTabAllocation, exportJSON, triggerLocalImport, importLocalJSON, openPrintSetup, toggleSelectAllTabs, executePrint
         };
       }
