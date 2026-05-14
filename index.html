@@ -42,6 +42,7 @@
         box-sizing: border-box !important;
       }
 
+      /* 列印模式下的備註自動換行與斷字設定 */
       .print-note-box {
         white-space: pre-wrap !important;
         word-break: break-word !important;
@@ -76,7 +77,7 @@
         display: inline-block;
         word-break: break-word;
       }
-      input { border: none !important; background: transparent !important; }
+      input, textarea { border: none !important; background: transparent !important; }
     }
   </style>
 </head>
@@ -91,8 +92,8 @@
         <div class="flex items-center gap-3">
           <div class="bg-indigo-600 text-white p-2.5 rounded-lg"><i class="fa-solid fa-cloud-arrow-down text-xl"></i></div>
           <div>
-            <h1 class="text-xl font-bold">教學分組管理系統 <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded ml-1">v9.5 旗艦完整版</span></h1>
-            <p class="text-xs text-slate-500">自動預載 default.json、修復拖曳排序、整合投影檢視與離線全分頁輸出</p>
+            <h1 class="text-xl font-bold">教學分組管理系統 <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded ml-1">v9.6 旗艦完美版</span></h1>
+            <p class="text-xs text-slate-500">自動預載 default.json、修復拖曳排序、整合投影檢視、離線輸出與全模式備註自動換行</p>
           </div>
         </div>
         
@@ -258,10 +259,12 @@
                   <div v-else class="font-bold text-xs text-indigo-950 w-full truncate">{{ group.name }}</div>
                   <span v-if="isViewMode" class="text-[10px] font-bold text-slate-500 shrink-0">{{ group.students.length }}人</span>
                 </div>
-                <div v-if="!isViewMode || group.note" class="bg-indigo-50/20 px-3 py-1 border-b border-slate-150 flex items-center">
-                  <input v-if="!isViewMode" v-model="group.note" placeholder="組別附註說明..." class="bg-transparent text-[10px] text-slate-600 w-full outline-none">
-                  <div v-else class="text-[10px] text-amber-800 font-medium w-full">{{ group.note }}</div>
+                
+                <div v-if="!isViewMode || group.note" class="bg-indigo-50/20 px-3 py-1.5 border-b border-slate-150 flex items-center">
+                  <textarea v-if="!isViewMode" v-model="group.note" rows="2" placeholder="組別附註說明 (支援Enter換行與長文字自動折行)..." class="bg-transparent text-[10px] text-slate-700 w-full outline-none resize-y whitespace-pre-wrap break-words leading-tight"></textarea>
+                  <div v-else class="text-[10px] text-amber-900 font-medium w-full whitespace-pre-wrap break-words leading-relaxed">{{ group.note }}</div>
                 </div>
+
                 <div class="p-2.5 space-y-3 flex-1 flex flex-col">
                   <div v-if="!isViewMode || group.teachers.length">
                     <h4 class="text-[9px] font-black text-emerald-700 mb-1">👨‍🏫 教師</h4>
@@ -339,9 +342,11 @@
               <div class="font-bold text-xs text-slate-900">{{ group.name }}</div>
               <div class="text-[10px] font-bold text-slate-500 mt-0.5">人數：{{ group.students.length }}人</div>
             </div>
-            <div class="bg-amber-50/30 px-3 py-1.5 border-b border-slate-150 text-[10px] text-slate-700 print-note-box">
-              {{ group.note || '' }}
+            
+            <div v-if="group.note" class="bg-amber-50/30 px-3 py-1.5 border-b border-slate-150 text-[10px] text-slate-700 print-note-box">
+              {{ group.note }}
             </div>
+
             <div class="p-2.5 space-y-2 flex-1 flex flex-col">
               <div v-if="group.teachers.length">
                 <div class="text-[9px] font-bold text-emerald-800 mb-0.5">教師</div>
@@ -390,7 +395,7 @@
         const selectedGithubFile = ref("");
         const isLoadingGithub = ref(false);
 
-        // 🌟 追蹤 Sortable 實體陣列防重複監聽
+        // 追蹤 Sortable 實體陣列防重複監聽與當機
         let sortableInstances = [];
 
         const currentTab = computed(() => tabs.value.find(t => t.id === activeTabId.value));
@@ -399,7 +404,7 @@
 
         const getSortedStudents = (students) => [...students].sort((a, b) => a.localeCompare(b, 'zh-TW'));
 
-        // 🌟 帶圈序號轉換器 (支援 1~50)
+        // 帶圈序號轉換器 (支援 1~50)
         const toCircledNumber = (num) => {
           const circles = [
             '','①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩',
@@ -411,7 +416,7 @@
           return circles[num] || `${num}.`;
         };
 
-        // 🌟 核心功能：從 GitHub 載入 JSON 設定檔 (支援 isSilent 靜默模式)
+        // 從 GitHub 載入 JSON 設定檔 (支援靜默載入模式)
         const loadFromGithub = async (targetUrl = null, isSilent = false) => {
           const urlToFetch = typeof targetUrl === 'string' ? targetUrl : selectedGithubFile.value;
           if (!urlToFetch) return false;
@@ -453,7 +458,7 @@
           }
         };
 
-        // 🌟 核心功能：背景取得檔案清單並嘗試自動載入 default.json
+        // 背景取得檔案清單並嘗試全自動預載 default.json
         const preloadDefaultJsonAndInit = async () => {
           isLoadingGithub.value = true;
           let isDefaultLoaded = false;
@@ -464,10 +469,9 @@
               const contents = await response.json();
               githubFiles.value = contents.filter(item => item.type === "file" && item.name.endsWith(".json"));
               
-              // 自動搜尋雲端清單中是否存在 default.json
               const defaultFile = githubFiles.value.find(file => file.name === "default.json");
               if (defaultFile) {
-                // 套用載入並指定為靜默模式 (不跳出確認對話框)
+                // 自動套用，啟用靜默模式不彈跳確認視窗
                 isDefaultLoaded = await loadFromGithub(defaultFile.download_url, true);
               }
             } else {
@@ -479,14 +483,14 @@
             isLoadingGithub.value = false;
           }
 
-          // 雲端尚未建立 default.json 或連線失敗時，載入預設本機名單開場
+          // 雲端尚未建立 default.json 或是離線時，自動回退使用本機預設名單開場
           if (!isDefaultLoaded) {
             addTab();
             applyToCurrentTab();
           }
         };
 
-        // 🌟 匯出包含「所有班級分頁」且自帶切換功能的獨立靜態網頁
+        // 🌟 匯出獨立靜態網頁 (內部 CSS 已嵌入完美的 white-space: pre-wrap 與斷字設定)
         const exportAllStaticHTML = () => {
           if (!tabs.value || !tabs.value.length) {
             alert("目前沒有可匯出的分頁資料！");
@@ -655,14 +659,21 @@
     }
     .group-title { font-size: 18px; font-weight: 700; color: #1e293b; }
     .group-count { font-size: 13px; font-weight: 600; color: var(--text-muted); background: #e2e8f0; padding: 2px 8px; border-radius: 12px; }
+    
+    /* 🌟 靜態網頁模式的備註自動換行防護 */
     .group-note {
       background: #fefce8;
-      padding: 8px 20px;
+      padding: 10px 20px;
       font-size: 13px;
       color: #854d0e;
       border-bottom: 1px solid #fef08a;
       font-weight: 500;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      line-height: 1.5;
     }
+    
     .group-body { padding: 20px; flex-grow: 1; }
     .section-title { font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; border-bottom: 2px solid #f1f5f9; padding-bottom: 4px; }
     .tags-container { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
@@ -719,17 +730,16 @@
           quickInputs.value[type] = '';
         };
 
-        // 🌟 拖曳防死機核心：徹底註銷前代實體，再結合 draggable 過濾綁定
+        // 徹底銷毀實體與使用 draggable 過濾器，防止移動分頁卡死當機
         const initSortable = () => {
           nextTick(() => {
-            // 清理上一輪綁定的實體，避免無窮迴圈與重複派發 DOM 事件
             sortableInstances.forEach(inst => inst && inst.destroy());
             sortableInstances = [];
 
             const tabEl = document.getElementById('tab-list');
             if (tabEl) {
               const inst = Sortable.create(tabEl, { 
-                draggable: '.tab-item', // 過濾器：嚴格限制僅能拖移 tab，避開加號按鈕
+                draggable: '.tab-item', // 嚴格限制僅能拖移標籤頁，避開加號按鈕
                 animation: 150, 
                 onEnd: (evt) => {
                   if (evt.oldIndex === undefined || evt.newIndex === undefined) return;
@@ -874,7 +884,7 @@
 
         watch([activeTabId, () => currentTab.value?.groups.length], () => initSortable(), { deep: true });
         
-        // 🌟 生命週期掛載時直接呼叫全自動預載與初始化引擎
+        // 生命週期掛載時直接觸發自動預載引擎與初始化
         onMounted(() => {
           preloadDefaultJsonAndInit();
         });
