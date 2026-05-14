@@ -16,6 +16,897 @@
     .sortable-ghost { opacity: 0.3; background: #dbeafe !important; border: 2px dashed #2563eb !important; }
     .print-engine-render { display: none; }
 
+    /* 列印專屬完美排版設定 */
+    @media print {
+      body { background-color: white !important; color: black !important; }
+      .screen-ui { display: none !important; }
+      .print-engine-render { display: block !important; width: 100% !important; }
+      
+      .print-page-section { break-after: page !important; page-break-after: always !important; }
+      .print-page-section:last-child { break-after: auto !important; page-break-after: auto !important; }
+      .print-header { border-bottom: 2px solid #222; padding-bottom: 8px; margin-bottom: 16px; }
+      
+      .groups-print-grid { 
+        display: grid !important; 
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important; 
+        gap: 12px !important; 
+        width: 100% !important;
+      }
+      
+      .group-card { 
+        border: 1px solid #64748b !important; 
+        break-inside: avoid; 
+        box-shadow: none !important; 
+        border-radius: 4px !important; 
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
+
+      .print-note-box {
+        white-space: pre-wrap !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+        display: block !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        line-height: 1.3 !important;
+      }
+
+      .print-single-column { 
+        display: flex !important; 
+        flex-direction: column !important; 
+        align-items: stretch !important; 
+        gap: 2px !important; 
+        width: 100% !important;
+      }
+      
+      .print-student-item { 
+        border-bottom: 1px solid #cbd5e1 !important; 
+        padding: 4px 2px !important; 
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+        white-space: normal !important;
+        line-height: 1.25 !important;
+      }
+      
+      .tag-print { 
+        border: 1px solid #99f6e4 !important; 
+        padding: 1px 6px !important; 
+        font-size: 11px; 
+        display: inline-block;
+        word-break: break-word;
+      }
+      input { border: none !important; background: transparent !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+
+  <div id="app">
+    
+    <div class="screen-ui container mx-auto p-4 max-w-7xl">
+      <input type="file" ref="fileInput" @change="importLocalJSON" accept=".json" class="hidden" />
+
+      <header class="flex flex-wrap justify-between items-center gap-4 mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+        <div class="flex items-center gap-3">
+          <div class="bg-indigo-600 text-white p-2.5 rounded-lg"><i class="fa-solid fa-cloud-arrow-down text-xl"></i></div>
+          <div>
+            <h1 class="text-xl font-bold">教學分組管理系統 <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded ml-1">v9.5 旗艦完整版</span></h1>
+            <p class="text-xs text-slate-500">自動預載 default.json、修復拖曳排序、整合投影檢視與離線全分頁輸出</p>
+          </div>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-2">
+          
+          <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 transition hover:border-indigo-400">
+            <i class="fa-brands fa-github text-slate-700 text-base"></i>
+            <select 
+              v-model="selectedGithubFile" 
+              @change="loadFromGithub(null, false)" 
+              class="bg-transparent text-xs text-slate-700 font-medium outline-none cursor-pointer max-w-[180px] sm:max-w-[220px] truncate"
+              :disabled="isLoadingGithub || isViewMode"
+            >
+              <option value="">從 GitHub 載入設定檔...</option>
+              <option v-for="file in githubFiles" :key="file.sha" :value="file.download_url">
+                📄 {{ file.name }}
+              </option>
+            </select>
+            <i v-if="isLoadingGithub" class="fa-solid fa-spinner fa-spin text-xs text-indigo-600"></i>
+          </div>
+
+          <button v-show="!isViewMode" @click="triggerLocalImport" class="bg-slate-100 hover:bg-slate-200 text-xs font-bold px-3 py-2.5 rounded-lg border border-slate-300 transition flex items-center gap-1 text-slate-700">
+            <i class="fa-solid fa-folder-open text-indigo-600"></i> 本地匯入
+          </button>
+          <button v-show="!isViewMode" @click="exportJSON" class="bg-slate-100 hover:bg-slate-200 text-xs font-bold px-3 py-2.5 rounded-lg border border-slate-300 transition flex items-center gap-1 text-slate-700">
+            <i class="fa-solid fa-file-export text-emerald-600"></i> 匯出備份
+          </button>
+
+          <button @click="exportAllStaticHTML" class="bg-slate-100 hover:bg-slate-200 text-xs font-bold px-3 py-2.5 rounded-lg border border-slate-300 transition flex items-center gap-1 text-slate-700" title="匯出包含所有分頁的純靜態展示用獨立網頁">
+            <i class="fa-solid fa-file-code text-indigo-600"></i> 匯出網頁 (全分頁)
+          </button>
+          
+          <button @click="isViewMode = !isViewMode" :class="isViewMode ? 'bg-amber-600 hover:bg-amber-700 text-white ring-2 ring-amber-400/50' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'" class="text-xs font-bold px-3 py-2.5 rounded-lg border border-slate-300 transition flex items-center gap-1.5">
+            <i :class="isViewMode ? 'fa-solid fa-pen-to-square' : 'fa-solid fa-display'"></i> 
+            {{ isViewMode ? '返回編輯' : '投影檢視' }}
+          </button>
+
+          <button @click="openPrintSetup" class="bg-indigo-700 hover:bg-indigo-800 text-white px-5 py-2.5 rounded-lg text-xs font-bold shadow-md ml-1 transition flex items-center gap-1.5">
+            <i class="fa-solid fa-print"></i> 輸出報表
+          </button>
+        </div>
+      </header>
+
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        
+        <aside v-show="!isViewMode" class="lg:col-span-1 space-y-4">
+          <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+            <h2 class="text-xs font-black mb-3 border-b pb-2 flex items-center gap-2 text-indigo-700 uppercase">
+              <i class="fa-solid fa-database"></i> 基礎資料建檔源
+            </h2>
+            <div class="space-y-3">
+              <div>
+                <label class="block text-[10px] font-bold text-rose-600 mb-1 flex justify-between">
+                  <span>🏷️ 預設組別名稱清單</span>
+                  <span class="text-slate-400 font-normal">每行一組</span>
+                </label>
+                <textarea v-model="rawGroupNames" rows="3" class="w-full p-2 text-xs border border-rose-200 rounded-lg outline-none focus:ring-2 focus:ring-rose-500 bg-rose-50/10" placeholder="A組&#10;B組&#10;C組"></textarea>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500 mb-1">👨‍🎓 學生總名單</label>
+                <textarea v-model="rawStudents" rows="5" class="w-full p-2 text-xs border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" placeholder="每行一位學生"></textarea>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500 mb-1">👨‍🏫 教師名單</label>
+                <textarea v-model="rawTeachers" rows="2" class="w-full p-2 text-xs border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" placeholder="正式/代課老師"></textarea>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500 mb-1">🧑‍🤝‍🧑 助理 / 志工名單</label>
+                <textarea v-model="rawAssistants" rows="2" class="w-full p-2 text-xs border rounded-lg outline-none focus:ring-2 focus:ring-amber-500" placeholder="特教助理員/陪讀者"></textarea>
+              </div>
+              <button @click="applyToCurrentTab" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-xs font-bold transition shadow-sm mt-2 flex items-center justify-center gap-1">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> 依清單自動開組並載入
+              </button>
+              <p class="text-[9px] text-slate-400 text-center">⚠️ 載入會重置此頁，中途加人請用右側介面</p>
+            </div>
+          </div>
+        </aside>
+
+        <main :class="isViewMode ? 'lg:col-span-4' : 'lg:col-span-3'">
+          
+          <div id="tab-list" class="flex items-center gap-1 overflow-x-auto mb-4 border-b border-slate-300 min-h-[45px]">
+            <div v-for="tab in tabs" :key="tab.id" :data-id="tab.id" @click="activeTabId = tab.id"
+              :class="['group tab-item px-4 py-2 rounded-t-lg text-sm font-medium cursor-pointer transition flex items-center gap-2 border-t border-x shrink-0 select-none', activeTabId === tab.id ? 'bg-white text-indigo-600 border-slate-200 shadow-sm' : 'bg-slate-200/50 text-slate-500 hover:bg-slate-200']">
+              <span v-if="!tab.isEditing || isViewMode" @dblclick="!isViewMode && (tab.isEditing = true)">{{ tab.name }}</span>
+              <input v-else v-model="tab.name" @blur="tab.isEditing = false" @keyup.enter="tab.isEditing = false" class="border-b border-indigo-400 px-1 text-xs w-24 outline-none">
+              <i v-show="!isViewMode" class="fa-solid fa-grip-vertical text-[10px] text-slate-300 opacity-0 group-hover:opacity-100 cursor-move" title="拖拉排序分頁"></i>
+              <button v-if="tabs.length > 1 && !isViewMode" @click.stop="deleteTab(tab.id)" class="hover:text-red-500 text-xs ml-1">&times;</button>
+            </div>
+            <button v-show="!isViewMode" @click="addTab" class="bg-white/50 hover:bg-white px-3 py-2 rounded-t-lg text-sm border border-dashed border-slate-300"><i class="fa-solid fa-plus"></i></button>
+          </div>
+
+          <div v-if="currentTab" class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+            
+            <div v-show="!isViewMode" class="flex flex-wrap justify-between items-center gap-4 mb-6 bg-slate-50 p-3 rounded-lg">
+              <div class="flex items-center gap-3">
+                <span class="text-xs font-bold text-slate-600">目前組數：</span>
+                <input type="number" v-model.number="currentTab.targetGroupCount" @change="updateGroupCount" min="1" class="w-12 p-1 border rounded text-center text-xs bg-white">
+                <button @click="duplicateCurrentTab" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1">
+                  <i class="fa-solid fa-copy"></i> 複製此頁
+                </button>
+              </div>
+              <div class="flex gap-2">
+                <button @click="randomizeMembers('students')" class="bg-indigo-500 hover:bg-indigo-600 text-white px-2.5 py-1.5 rounded text-[10px] font-bold transition">隨機學生</button>
+                <button @click="randomizeMembers('teachers')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded text-[10px] font-bold transition">隨機教師</button>
+                <button @click="randomizeMembers('assistants')" class="bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1.5 rounded text-[10px] font-bold transition">隨機助理</button>
+                <button @click="resetTabAllocation" class="text-red-500 text-[10px] px-2 border border-red-200 hover:bg-red-50 rounded transition">清空重置</button>
+              </div>
+            </div>
+
+            <div v-show="!isViewMode" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+              <div class="bg-indigo-50/50 p-2.5 rounded-lg border border-indigo-100 flex flex-col justify-between">
+                <div>
+                  <h3 class="text-[10px] font-black text-indigo-700 mb-1.5 uppercase flex items-center justify-between">
+                    <span>待分配學生 ({{ currentTab.unassignedStudents.length }})</span>
+                  </h3>
+                  <div class="flex flex-wrap gap-1 min-h-[36px] drop-zone-student content-start" data-type="pool">
+                    <div v-for="s in currentTab.unassignedStudents" :key="s" :data-name="s" class="bg-white border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded text-[10px] cursor-move shadow-sm select-none">{{ s }}</div>
+                  </div>
+                </div>
+                <div class="mt-2 pt-2 border-t border-indigo-200/50 flex gap-1 no-print">
+                  <input v-model="quickInputs.students" @keyup.enter="quickAddMember('students')" placeholder="臨時加入學生..." class="bg-white text-[10px] text-slate-800 px-1.5 py-1 border border-indigo-200 rounded w-full outline-none focus:border-indigo-400 transition placeholder-indigo-300">
+                  <button @click="quickAddMember('students')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2 rounded text-[10px] font-bold transition shrink-0">＋</button>
+                </div>
+              </div>
+
+              <div class="bg-emerald-50/50 p-2.5 rounded-lg border border-emerald-100 flex flex-col justify-between">
+                <div>
+                  <h3 class="text-[10px] font-black text-emerald-700 mb-1.5 uppercase flex items-center justify-between">
+                    <span>待分配教師 ({{ currentTab.unassignedTeachers.length }})</span>
+                  </h3>
+                  <div class="flex flex-wrap gap-1 min-h-[36px] drop-zone-teacher content-start" data-type="pool">
+                    <div v-for="t in currentTab.unassignedTeachers" :key="t" :data-name="t" class="bg-white border border-emerald-200 text-emerald-700 px-2 py-0.5 rounded text-[10px] cursor-move shadow-sm select-none">{{ t }}</div>
+                  </div>
+                </div>
+                <div class="mt-2 pt-2 border-t border-emerald-200/50 flex gap-1 no-print">
+                  <input v-model="quickInputs.teachers" @keyup.enter="quickAddMember('teachers')" placeholder="臨時加入教師..." class="bg-white text-[10px] text-slate-800 px-1.5 py-1 border border-emerald-200 rounded w-full outline-none focus:border-emerald-400 transition placeholder-emerald-300">
+                  <button @click="quickAddMember('teachers')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 rounded text-[10px] font-bold transition shrink-0">＋</button>
+                </div>
+              </div>
+
+              <div class="bg-amber-50/50 p-2.5 rounded-lg border border-amber-100 flex flex-col justify-between">
+                <div>
+                  <h3 class="text-[10px] font-black text-amber-700 mb-1.5 uppercase flex items-center justify-between">
+                    <span>待分配助理 ({{ currentTab.unassignedAssistants.length }})</span>
+                  </h3>
+                  <div class="flex flex-wrap gap-1 min-h-[36px] drop-zone-assistant content-start" data-type="pool">
+                    <div v-for="a in currentTab.unassignedAssistants" :key="a" :data-name="a" class="bg-white border border-amber-200 text-amber-700 px-2 py-0.5 rounded text-[10px] cursor-move shadow-sm select-none">{{ a }}</div>
+                  </div>
+                </div>
+                <div class="mt-2 pt-2 border-t border-amber-200/50 flex gap-1 no-print">
+                  <input v-model="quickInputs.assistants" @keyup.enter="quickAddMember('assistants')" placeholder="臨時加入助理..." class="bg-white text-[10px] text-slate-800 px-1.5 py-1 border border-amber-200 rounded w-full outline-none focus:border-amber-400 transition placeholder-amber-300">
+                  <button @click="quickAddMember('assistants')" class="bg-amber-600 hover:bg-amber-700 text-white px-2 rounded text-[10px] font-bold transition shrink-0">＋</button>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div v-for="(group, gIdx) in currentTab.groups" :key="group.id" :class="['border rounded-xl flex flex-col bg-white overflow-hidden transition', isViewMode ? 'border-slate-300 shadow-sm' : 'border-slate-200']">
+                <div class="bg-slate-100 px-3 py-2 border-b flex items-center gap-2">
+                  <span class="bg-slate-700 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shrink-0">{{ gIdx+1 }}</span>
+                  <input v-if="!isViewMode" v-model="group.name" placeholder="輸入組名..." class="bg-transparent font-bold text-xs outline-none w-full text-indigo-950 focus:bg-white px-1 rounded transition border border-transparent focus:border-slate-300">
+                  <div v-else class="font-bold text-xs text-indigo-950 w-full truncate">{{ group.name }}</div>
+                  <span v-if="isViewMode" class="text-[10px] font-bold text-slate-500 shrink-0">{{ group.students.length }}人</span>
+                </div>
+                <div v-if="!isViewMode || group.note" class="bg-indigo-50/20 px-3 py-1 border-b border-slate-150 flex items-center">
+                  <input v-if="!isViewMode" v-model="group.note" placeholder="組別附註說明..." class="bg-transparent text-[10px] text-slate-600 w-full outline-none">
+                  <div v-else class="text-[10px] text-amber-800 font-medium w-full">{{ group.note }}</div>
+                </div>
+                <div class="p-2.5 space-y-3 flex-1 flex flex-col">
+                  <div v-if="!isViewMode || group.teachers.length">
+                    <h4 class="text-[9px] font-black text-emerald-700 mb-1">👨‍🏫 教師</h4>
+                    <div :class="['flex flex-wrap gap-1 p-1 rounded drop-zone-teacher', isViewMode ? 'pointer-events-none' : 'min-h-[24px] bg-emerald-50/10 border border-dashed border-emerald-200']" :data-group-idx="gIdx">
+                      <div v-for="(t, tIdx) in group.teachers" :key="t" :data-name="t" class="bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px] flex items-center gap-1 select-none">
+                        {{ t }} <i v-if="!isViewMode" class="fa-solid fa-xmark text-[8px] cursor-pointer opacity-70 hover:opacity-100 pointer-events-auto" @click="removeMember(gIdx, 'teachers', tIdx)"></i>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-if="!isViewMode || group.assistants.length">
+                    <h4 class="text-[9px] font-black text-amber-700 mb-1">🧑‍🤝‍🧑 助理</h4>
+                    <div :class="['flex flex-wrap gap-1 p-1 rounded drop-zone-assistant', isViewMode ? 'pointer-events-none' : 'min-h-[24px] bg-amber-50/10 border border-dashed border-amber-200']" :data-group-idx="gIdx">
+                      <div v-for="(a, aIdx) in group.assistants" :key="a" :data-name="a" class="bg-amber-600 text-white px-2 py-0.5 rounded text-[10px] flex items-center gap-1 select-none">
+                        {{ a }} <i v-if="!isViewMode" class="fa-solid fa-xmark text-[8px] cursor-pointer opacity-70 hover:opacity-100 pointer-events-auto" @click="removeMember(gIdx, 'assistants', aIdx)"></i>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="flex-1 flex flex-col">
+                    <h4 class="text-[9px] font-black text-indigo-700 mb-1">👨‍🎓 學生名單</h4>
+                    <div :class="['flex flex-wrap gap-1 p-1 rounded flex-1 content-start drop-zone-student', isViewMode ? 'pointer-events-none flex-col gap-1' : 'min-h-[50px] bg-indigo-50/10 border border-dashed border-indigo-200']" :data-group-idx="gIdx">
+                      <div v-for="(s, sIdx) in group.students" :key="s" :data-name="s" :class="['text-white rounded text-[10px] flex items-center justify-between gap-1 w-full shadow-2xs select-none', isViewMode ? 'bg-indigo-700 px-2 py-1.5 font-medium text-xs' : 'bg-indigo-600 px-2 py-1 sm:w-auto']">
+                        <span><template v-if="isViewMode"><span class="text-indigo-200 font-normal mr-0.5">{{ toCircledNumber(sIdx + 1) }}</span> </template>{{ s }}</span> 
+                        <i v-if="!isViewMode" class="fa-solid fa-xmark text-[8px] cursor-pointer opacity-70 hover:opacity-100 pointer-events-auto" @click="removeMember(gIdx, 'students', sIdx)"></i>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <div v-if="printDialog.show" class="screen-ui fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 animate-in fade-in zoom-in-95 duration-150">
+        <h3 class="text-sm font-bold mb-4 flex items-center gap-2 text-indigo-950">
+          <i class="fa-solid fa-print text-indigo-600"></i> 自訂列印格式輸出
+        </h3>
+        <div class="space-y-4">
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="text-[10px] font-bold text-slate-500">選擇列印分頁</label>
+              <button @click="toggleSelectAllTabs" class="text-[10px] text-indigo-600 hover:underline">全選/全不選</button>
+            </div>
+            <div class="max-h-32 overflow-y-auto border rounded divide-y divide-slate-100">
+              <label v-for="tab in tabs" :key="tab.id" class="flex items-center gap-2 p-2 hover:bg-slate-50 cursor-pointer text-xs">
+                <input type="checkbox" :value="tab.id" v-model="printDialog.selectedTabIds" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"> 
+                <span class="font-medium text-slate-800">{{ tab.name }}</span>
+              </label>
+            </div>
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-500 block mb-1">學生名字字體大小 ({{ printDialog.fontSize }}px)</label>
+            <input type="range" v-model="printDialog.fontSize" min="12" max="24" class="w-full h-2 bg-slate-200 rounded-lg accent-indigo-600 cursor-pointer">
+            <div class="flex justify-between text-[9px] text-slate-400 mt-1"><span>標準 12px</span><span>極限大字 24px</span></div>
+          </div>
+        </div>
+        <div class="flex gap-2 mt-6 pt-2 border-t">
+          <button @click="printDialog.show = false" class="flex-1 bg-slate-100 hover:bg-slate-200 py-2 rounded text-xs font-bold text-slate-600 transition">取消</button>
+          <button @click="executePrint" :disabled="!printDialog.selectedTabIds.length" class="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white py-2 rounded text-xs font-bold shadow-sm transition">確定輸出</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="print-engine-render">
+      <div v-for="tab in printEngineTabs" :key="tab.id" class="print-page-section">
+        <div class="print-header text-center flex flex-col">
+          <h1 class="text-2xl font-black">課程：{{ tab.name }}</h1>
+          <p class="text-[10px] text-slate-400 mt-1">產出時間：{{ printDateStr }}</p>
+        </div>
+        <div class="groups-print-grid">
+          <div v-for="(group, gIdx) in tab.groups" :key="group.id" class="group-card flex flex-col bg-white">
+            <div class="bg-slate-100 px-3 py-1.5 border-b border-slate-200">
+              <div class="font-bold text-xs text-slate-900">{{ group.name }}</div>
+              <div class="text-[10px] font-bold text-slate-500 mt-0.5">人數：{{ group.students.length }}人</div>
+            </div>
+            <div class="bg-amber-50/30 px-3 py-1.5 border-b border-slate-150 text-[10px] text-slate-700 print-note-box">
+              {{ group.note || '' }}
+            </div>
+            <div class="p-2.5 space-y-2 flex-1 flex flex-col">
+              <div v-if="group.teachers.length">
+                <div class="text-[9px] font-bold text-emerald-800 mb-0.5">教師</div>
+                <div class="flex flex-wrap gap-1"><span v-for="t in group.teachers" :key="t" class="tag-print border border-emerald-200 text-emerald-900 font-medium">{{ t }}</span></div>
+              </div>
+              <div v-if="group.assistants.length">
+                <div class="text-[9px] font-bold text-amber-800 mb-0.5">助理</div>
+                <div class="flex flex-wrap gap-1"><span v-for="a in group.assistants" :key="a" class="tag-print border border-amber-200 text-amber-900 font-medium">{{ a }}</span></div>
+              </div>
+              <div class="flex-1 flex flex-col mt-0.5">
+                <div class="text-[9px] font-bold text-indigo-800 mb-0.5 border-b pb-0.5">學生名單</div>
+                <div class="print-single-column">
+                  <div v-for="(s, sIdx) in getSortedStudents(group.students)" :key="s" class="print-student-item font-medium text-slate-950" :style="{ fontSize: printDialog.fontSize + 'px' }">
+                    {{ toCircledNumber(sIdx + 1) }} {{ s }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const { createApp, ref, computed, nextTick, watch, onMounted } = Vue;
+
+    createApp({
+      directives: { focus: { mounted(el) { el.focus(); } } },
+      setup() {
+        const rawGroupNames = ref("A組\nB組\nC組");
+        const rawStudents = ref("王大明\n陳小華\n林美美\n張小強\n李大仁\n黃彩色\n趙雲\n關羽\n張飛\n周杰倫\n蔡依林\n林俊傑");
+        const rawTeachers = ref("陳老師\n林老師");
+        const rawAssistants = ref("李助理\n張志工");
+        
+        const tabs = ref([]);
+        const activeTabId = ref(null);
+        const fileInput = ref(null);
+        const printDialog = ref({ show: false, selectedTabIds: [], fontSize: 14 });
+
+        const isViewMode = ref(false);
+        const quickInputs = ref({ students: '', teachers: '', assistants: '' });
+
+        const githubFiles = ref([]);
+        const selectedGithubFile = ref("");
+        const isLoadingGithub = ref(false);
+
+        // 🌟 追蹤 Sortable 實體陣列防重複監聽
+        let sortableInstances = [];
+
+        const currentTab = computed(() => tabs.value.find(t => t.id === activeTabId.value));
+        const printEngineTabs = computed(() => tabs.value.filter(t => printDialog.value.selectedTabIds.includes(t.id)));
+        const printDateStr = computed(() => new Date().toLocaleString());
+
+        const getSortedStudents = (students) => [...students].sort((a, b) => a.localeCompare(b, 'zh-TW'));
+
+        // 🌟 帶圈序號轉換器 (支援 1~50)
+        const toCircledNumber = (num) => {
+          const circles = [
+            '','①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩',
+            '⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳',
+            '㉑','㉒','㉓','㉔','㉕','㉖','㉗','㉘','㉙','㉚',
+            '㉛','㉜','㉝','㉞','㉟','㉠','㉡','㉢','㉣','㉤',
+            '㉥','㉦','㉧','㉨','㉩','㉪','㉫','㉬','㉭','㉮'
+          ];
+          return circles[num] || `${num}.`;
+        };
+
+        // 🌟 核心功能：從 GitHub 載入 JSON 設定檔 (支援 isSilent 靜默模式)
+        const loadFromGithub = async (targetUrl = null, isSilent = false) => {
+          const urlToFetch = typeof targetUrl === 'string' ? targetUrl : selectedGithubFile.value;
+          if (!urlToFetch) return false;
+          
+          if (!isSilent) {
+            if (!confirm("確定要載入這份 GitHub 雲端設定檔嗎？當前頁面所有分組進度將被覆蓋還原。")) {
+              selectedGithubFile.value = ""; 
+              return false;
+            }
+          }
+
+          isLoadingGithub.value = true;
+          try {
+            const response = await fetch(urlToFetch);
+            const data = await response.json();
+            
+            if (data.tabs && Array.isArray(data.tabs)) {
+              tabs.value = data.tabs;
+              if (data.rawGroupNames !== undefined) rawGroupNames.value = data.rawGroupNames;
+              rawStudents.value = data.rawStudents || "";
+              rawTeachers.value = data.rawTeachers || "";
+              rawAssistants.value = data.rawAssistants || "";
+              activeTabId.value = data.tabs[0]?.id;
+              
+              nextTick(() => initSortable());
+              if (!isSilent) alert("🚀 成功從 GitHub 載入雲端設定檔！");
+              return true;
+            } else {
+              if (!isSilent) alert("⚠️ 讀取失敗，檔案內容格式不符合分組系統的 JSON 架構。");
+              return false;
+            }
+          } catch (error) {
+            if (!isSilent) alert("❌ 載入失敗，無法正確解析雲端設定檔。");
+            console.error("解析 JSON 錯誤:", error);
+            return false;
+          } finally {
+            if (!isSilent) selectedGithubFile.value = ""; 
+            isLoadingGithub.value = false;
+          }
+        };
+
+        // 🌟 核心功能：背景取得檔案清單並嘗試自動載入 default.json
+        const preloadDefaultJsonAndInit = async () => {
+          isLoadingGithub.value = true;
+          let isDefaultLoaded = false;
+          
+          try {
+            const response = await fetch("https://api.github.com/repos/tpectim/grouping/contents/");
+            if (response.ok) {
+              const contents = await response.json();
+              githubFiles.value = contents.filter(item => item.type === "file" && item.name.endsWith(".json"));
+              
+              // 自動搜尋雲端清單中是否存在 default.json
+              const defaultFile = githubFiles.value.find(file => file.name === "default.json");
+              if (defaultFile) {
+                // 套用載入並指定為靜默模式 (不跳出確認對話框)
+                isDefaultLoaded = await loadFromGithub(defaultFile.download_url, true);
+              }
+            } else {
+              console.warn("無法取得 GitHub 目錄。");
+            }
+          } catch (error) {
+            console.error("自動載入 default.json 發生錯誤:", error);
+          } finally {
+            isLoadingGithub.value = false;
+          }
+
+          // 雲端尚未建立 default.json 或連線失敗時，載入預設本機名單開場
+          if (!isDefaultLoaded) {
+            addTab();
+            applyToCurrentTab();
+          }
+        };
+
+        // 🌟 匯出包含「所有班級分頁」且自帶切換功能的獨立靜態網頁
+        const exportAllStaticHTML = () => {
+          if (!tabs.value || !tabs.value.length) {
+            alert("目前沒有可匯出的分頁資料！");
+            return;
+          }
+
+          let navTabsHtml = '<div class="nav-container"><div class="tabs-wrapper">';
+          tabs.value.forEach((tab, index) => {
+            navTabsHtml += `<button class="tab-btn ${index === 0 ? 'active' : ''}" onclick="switchTab('${tab.id}')">${tab.name}</button>`;
+          });
+          navTabsHtml += '</div></div>';
+
+          let contentSectionsHtml = '';
+          tabs.value.forEach((tab, index) => {
+            let groupsHtml = '';
+            tab.groups.forEach((g) => {
+              let teachersHtml = g.teachers.map(t => `<span class="tag tag-teacher">${t}</span>`).join('');
+              let assistantsHtml = g.assistants.map(a => `<span class="tag tag-assistant">${a}</span>`).join('');
+              let studentsHtml = g.students.map((s, sIdx) => `
+                <div class="student-item">
+                  <span class="num">${toCircledNumber(sIdx + 1)}</span>
+                  <span class="name">${s}</span>
+                </div>
+              `).join('');
+
+              groupsHtml += `
+                <div class="group-card">
+                  <div class="group-header">
+                    <div class="group-title">${g.name}</div>
+                    <div class="group-count">${g.students.length}人</div>
+                  </div>
+                  ${g.note ? `<div class="group-note">${g.note}</div>` : ''}
+                  <div class="group-body">
+                    ${teachersHtml ? `<div class="section-title">👨‍🏫 教師</div><div class="tags-container">${teachersHtml}</div>` : ''}
+                    ${assistantsHtml ? `<div class="section-title">🧑‍🤝‍🧑 助理</div><div class="tags-container">${assistantsHtml}</div>` : ''}
+                    <div class="section-title" style="${(teachersHtml || assistantsHtml) ? 'margin-top: 12px;' : ''}">👨‍🎓 學生名單</div>
+                    <div class="students-list">
+                      ${studentsHtml}
+                    </div>
+                  </div>
+                </div>
+              `;
+            });
+
+            contentSectionsHtml += `
+              <div id="content-${tab.id}" class="tab-content ${index === 0 ? 'active' : ''}">
+                <div class="header">
+                  <h1>${tab.name}</h1>
+                  <p>資料匯出時間：${new Date().toLocaleString()}</p>
+                </div>
+                <div class="grid">
+                  ${groupsHtml}
+                </div>
+              </div>
+            `;
+          });
+
+          const scriptHtml = `
+            <script>
+              function switchTab(tabId) {
+                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                
+                const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabId));
+                const activeContent = document.getElementById('content-' + tabId);
+                
+                if (activeBtn) activeBtn.classList.add('active');
+                if (activeContent) activeContent.classList.add('active');
+              }
+            <\/script>
+          `;
+
+          const fullHtmlStr = `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>教學分組管理系統 - 全頁面投影展示</title>
+  <style>
+    :root {
+      --bg-color: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-color: #cbd5e1;
+      --primary: #4f46e5;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      margin: 0;
+      padding: 0 0 40px 0;
+      line-height: 1.5;
+    }
+    .container { max-width: 1600px; margin: 0 auto; padding: 0 24px; }
+    
+    .nav-container {
+      background: white;
+      border-bottom: 1px solid #e2e8f0;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+      margin-bottom: 24px;
+    }
+    .tabs-wrapper {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      padding: 14px 20px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: var(--primary); }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 700; }
+    
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      border: 1px solid #e2e8f0;
+    }
+    .header h1 { margin: 0; font-size: 32px; color: #1e1b4b; font-weight: 800; }
+    .header p { margin: 8px 0 0 0; color: var(--text-muted); font-size: 14px; }
+    
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .group-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .group-header {
+      background: #f1f5f9;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .group-title { font-size: 18px; font-weight: 700; color: #1e293b; }
+    .group-count { font-size: 13px; font-weight: 600; color: var(--text-muted); background: #e2e8f0; padding: 2px 8px; border-radius: 12px; }
+    .group-note {
+      background: #fefce8;
+      padding: 8px 20px;
+      font-size: 13px;
+      color: #854d0e;
+      border-bottom: 1px solid #fef08a;
+      font-weight: 500;
+    }
+    .group-body { padding: 20px; flex-grow: 1; }
+    .section-title { font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; border-bottom: 2px solid #f1f5f9; padding-bottom: 4px; }
+    .tags-container { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+    .tag { font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 6px; display: inline-block; }
+    .tag-teacher { background: #059669; color: white; }
+    .tag-assistant { background: #d97706; color: white; }
+    .students-list { display: flex; flex-direction: column; gap: 8px; }
+    .student-item {
+      background: var(--primary);
+      color: white;
+      padding: 10px 16px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      font-size: 16px;
+      font-weight: 600;
+      box-shadow: 0 2px 4px rgba(79, 70, 229, 0.15);
+    }
+    .student-item .num { color: #c7d2fe; margin-right: 10px; font-weight: 400; font-size: 15px; }
+    
+    @media print {
+      body { background: white; padding: 0; }
+      .nav-container { display: none !important; }
+      .container { padding: 0; max-width: 100%; }
+      .tab-content { display: block !important; break-after: page; page-break-after: always; margin-bottom: 24px; }
+      .tab-content:last-child { break-after: auto; page-break-after: auto; }
+      .header { box-shadow: none; border: none; margin-bottom: 16px; padding: 0; }
+      .group-card { break-inside: avoid; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  ${navTabsHtml}
+  <div class="container">
+    ${contentSectionsHtml}
+  </div>
+  ${scriptHtml}
+</body>
+</html>`;
+
+          const blob = new Blob([fullHtmlStr], { type: 'text/html;charset=utf-8' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `教學分組總名單(全分頁展示)_${new Date().toISOString().slice(0,10)}.html`;
+          a.click();
+        };
+
+        const quickAddMember = (type) => {
+          const tab = currentTab.value;
+          const newName = quickInputs.value[type].trim();
+          if (!tab || !newName) return;
+          const targetKey = type === 'students' ? 'unassignedStudents' : type === 'teachers' ? 'unassignedTeachers' : 'unassignedAssistants';
+          tab[targetKey].push(newName);
+          quickInputs.value[type] = '';
+        };
+
+        // 🌟 拖曳防死機核心：徹底註銷前代實體，再結合 draggable 過濾綁定
+        const initSortable = () => {
+          nextTick(() => {
+            // 清理上一輪綁定的實體，避免無窮迴圈與重複派發 DOM 事件
+            sortableInstances.forEach(inst => inst && inst.destroy());
+            sortableInstances = [];
+
+            const tabEl = document.getElementById('tab-list');
+            if (tabEl) {
+              const inst = Sortable.create(tabEl, { 
+                draggable: '.tab-item', // 過濾器：嚴格限制僅能拖移 tab，避開加號按鈕
+                animation: 150, 
+                onEnd: (evt) => {
+                  if (evt.oldIndex === undefined || evt.newIndex === undefined) return;
+                  const moved = tabs.value.splice(evt.oldIndex, 1)[0];
+                  if (moved) {
+                    tabs.value.splice(evt.newIndex, 0, moved);
+                  }
+                }
+              });
+              sortableInstances.push(inst);
+            }
+
+            const zones = [
+              { selector: '.drop-zone-student', key: 'students', unKey: 'unassignedStudents' },
+              { selector: '.drop-zone-teacher', key: 'teachers', unKey: 'unassignedTeachers' },
+              { selector: '.drop-zone-assistant', key: 'assistants', unKey: 'unassignedAssistants' }
+            ];
+
+            zones.forEach(zone => {
+              document.querySelectorAll(zone.selector).forEach(el => {
+                const inst = Sortable.create(el, { 
+                  group: zone.key, 
+                  animation: 150, 
+                  onEnd: (evt) => {
+                    const fromIdx = evt.from.dataset.groupIdx, toIdx = evt.to.dataset.groupIdx;
+                    const fromPool = evt.from.dataset.type === 'pool', toPool = evt.to.dataset.type === 'pool';
+                    const name = evt.item.dataset.name;
+
+                    if(fromPool) currentTab.value[zone.unKey].splice(evt.oldIndex, 1);
+                    else currentTab.value.groups[fromIdx][zone.key].splice(evt.oldIndex, 1);
+
+                    if(toPool) currentTab.value[zone.unKey].splice(evt.newIndex, 0, name);
+                    else currentTab.value.groups[toIdx][zone.key].splice(evt.newIndex, 0, name);
+                  }
+                });
+                sortableInstances.push(inst);
+              });
+            });
+          });
+        };
+
+        const addTab = () => {
+          const id = Date.now();
+          const customNames = rawGroupNames.value.split('\n').map(s => s.trim()).filter(s => s);
+          const initialCount = customNames.length > 0 ? customNames.length : 3;
+
+          tabs.value.push({
+            id, name: `分組清單 ${tabs.value.length+1}`, isEditing: false, targetGroupCount: initialCount,
+            groups: Array.from({length: initialCount}, (_, i) => ({ id: Date.now() + Math.random(), name: customNames[i] || `第 ${i+1} 組`, note: '', students: [], teachers: [], assistants: [] })),
+            unassignedStudents: [], unassignedTeachers: [], unassignedAssistants: []
+          });
+          activeTabId.value = id;
+        };
+
+        const applyToCurrentTab = () => {
+          if(!currentTab.value) return;
+          const customNames = rawGroupNames.value.split('\n').map(s => s.trim()).filter(s => s);
+          currentTab.value.unassignedStudents = rawStudents.value.split('\n').map(s => s.trim()).filter(s => s);
+          currentTab.value.unassignedTeachers = rawTeachers.value.split('\n').map(s => s.trim()).filter(s => s);
+          currentTab.value.unassignedAssistants = rawAssistants.value.split('\n').map(s => s.trim()).filter(s => s);
+
+          const targetCount = customNames.length > 0 ? customNames.length : currentTab.value.targetGroupCount;
+          currentTab.value.targetGroupCount = targetCount;
+
+          currentTab.value.groups = Array.from({length: targetCount}, (_, i) => ({
+            id: Date.now() + Math.random(), name: customNames[i] || `第 ${i+1} 組`, note: '', students: [], teachers: [], assistants: []
+          }));
+        };
+
+        const randomizeMembers = (type) => {
+          const tab = currentTab.value;
+          const unKey = type === 'students' ? 'unassignedStudents' : type === 'teachers' ? 'unassignedTeachers' : 'unassignedAssistants';
+          if(!tab[unKey].length) return;
+          const shuffled = [...tab[unKey]].sort(() => Math.random() - 0.5);
+          shuffled.forEach((m, i) => tab.groups[i % tab.groups.length][type].push(m));
+          tab[unKey] = [];
+        };
+
+        const removeMember = (gIdx, key, mIdx) => {
+          const tab = currentTab.value;
+          const unKey = key === 'students' ? 'unassignedStudents' : key === 'teachers' ? 'unassignedTeachers' : 'unassignedAssistants';
+          tab[unKey].push(tab.groups[gIdx][key].splice(mIdx, 1)[0]);
+        };
+
+        const updateGroupCount = () => {
+          const tab = currentTab.value;
+          const customNames = rawGroupNames.value.split('\n').map(s => s.trim()).filter(s => s);
+          const diff = tab.targetGroupCount - tab.groups.length;
+          
+          if (diff > 0) {
+            for (let i = 0; i < diff; i++) {
+              const newIdx = tab.groups.length;
+              tab.groups.push({ id: Date.now() + Math.random(), name: customNames[newIdx] || `第 ${newIdx + 1} 組`, note: '', students: [], teachers: [], assistants: [] });
+            }
+          } else if (diff < 0) {
+            tab.groups.splice(tab.targetGroupCount).forEach(g => {
+              tab.unassignedStudents.push(...g.students); tab.unassignedTeachers.push(...g.teachers); tab.unassignedAssistants.push(...g.assistants);
+            });
+          }
+        };
+
+        const exportJSON = () => {
+          const data = JSON.stringify({ tabs: tabs.value, rawGroupNames: rawGroupNames.value, rawStudents: rawStudents.value, rawTeachers: rawTeachers.value, rawAssistants: rawAssistants.value }, null, 2);
+          const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], {type:'application/json'})); a.download = `教學分組名單備份_${new Date().toISOString().slice(0,10)}.json`; a.click();
+        };
+
+        const triggerLocalImport = () => fileInput.value.click();
+        const importLocalJSON = (e) => {
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            try {
+              const data = JSON.parse(evt.target.result);
+              tabs.value = data.tabs; 
+              if (data.rawGroupNames !== undefined) rawGroupNames.value = data.rawGroupNames;
+              rawStudents.value = data.rawStudents || ""; rawTeachers.value = data.rawTeachers || ""; rawAssistants.value = data.rawAssistants || "";
+              activeTabId.value = data.tabs[0]?.id;
+            } catch(err) { alert("讀取失敗！檔案損毀或不支援此格式。"); }
+            e.target.value = '';
+          };
+          reader.readAsText(e.target.files[0]);
+        };
+
+        const openPrintSetup = () => { printDialog.value.selectedTabIds = [activeTabId.value]; printDialog.value.show = true; };
+        const toggleSelectAllTabs = () => printDialog.value.selectedTabIds = printDialog.value.selectedTabIds.length === tabs.value.length ? [] : tabs.value.map(t=>t.id);
+        const executePrint = () => { setTimeout(() => { window.print(); printDialog.value.show = false; }, 100); };
+        
+        const duplicateCurrentTab = () => {
+          const copy = JSON.parse(JSON.stringify(currentTab.value));
+          copy.id = Date.now(); copy.name += ' (複本)';
+          copy.groups.forEach(g => g.id = Date.now() + Math.random());
+          tabs.value.push(copy); activeTabId.value = copy.id;
+        };
+
+        const resetTabAllocation = () => {
+          currentTab.value.groups.forEach(g => {
+            currentTab.value.unassignedStudents.push(...g.students); currentTab.value.unassignedTeachers.push(...g.teachers); currentTab.value.unassignedAssistants.push(...g.assistants);
+            g.students = []; g.teachers = []; g.assistants = [];
+          });
+        };
+
+        const deleteTab = (id) => { if(confirm('確定刪除此頁面？')) { tabs.value = tabs.value.filter(t=>t.id!==id); activeTabId.value = tabs.value[0]?.id; } };
+
+        watch([activeTabId, () => currentTab.value?.groups.length], () => initSortable(), { deep: true });
+        
+        // 🌟 生命週期掛載時直接呼叫全自動預載與初始化引擎
+        onMounted(() => {
+          preloadDefaultJsonAndInit();
+        });
+
+        return {
+          rawGroupNames, rawStudents, rawTeachers, rawAssistants, tabs, activeTabId, currentTab, fileInput, printDialog, printEngineTabs, printDateStr, quickInputs,
+          githubFiles, selectedGithubFile, isLoadingGithub, loadFromGithub, isViewMode,
+          getSortedStudents, toCircledNumber, exportAllStaticHTML, quickAddMember, addTab, deleteTab, duplicateCurrentTab, applyToCurrentTab, updateGroupCount, removeMember, randomizeMembers, 
+          resetTabAllocation, exportJSON, triggerLocalImport, importLocalJSON, openPrintSetup, toggleSelectAllTabs, executePrint
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>教學分組管理系統 (GitHub 雲端連動版)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; }
+    ::-webkit-scrollbar-thumb { background: #c5c5c5; border-radius: 3px; }
+
+    .sortable-ghost { opacity: 0.3; background: #dbeafe !important; border: 2px dashed #2563eb !important; }
+    .print-engine-render { display: none; }
+
     /* 列印專屬完美排版設定 (繼承等寬鎖定與換行防護) */
     @media print {
       body { background-color: white !important; color: black !important; }
