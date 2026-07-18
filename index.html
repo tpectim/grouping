@@ -18,6 +18,13 @@
 
     /* 列印專屬完美排版設定 */
     @media print {
+      /* 加上這行：強制在列印時隱藏所有 Font Awesome 圖標與偽元素 */
+  i, .fa, .fas, .far, .fab, .fa-solid, .fa-brands, [class*="fa-"] { display: none !important; }
+
+  body { background-color: white !important; color: black !important; }
+  .screen-ui { display: none !important; }
+  ...
+
       body { background-color: white !important; color: black !important; }
       .screen-ui { display: none !important; }
       .print-engine-render { display: block !important; width: 100% !important; }
